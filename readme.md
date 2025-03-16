@@ -2,8 +2,8 @@
 
 - [English](readme.md#english)
 - [Українська](readme.md#Українська)
-- [Русский](readme#русский)
-- [Français](readme#francais)
+- [Русский](readme.md#русский)
+- [Français](readme.md#francais)
 
 # __ENGLISH__
 
