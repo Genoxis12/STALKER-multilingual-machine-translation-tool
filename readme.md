@@ -27,15 +27,15 @@ Please let me know of any problems.
     - Download the project as a zip file
     - or make a git clone
 
-2. Run the init.bat file. Creating the environment may take some time.
-<span style="color:grey">(The file will create a python venv to be able to use the modules required for translation, as well as a launcher.bat file).</span>
-
-3. Create a DeepL API key and add it to the common.api file:
+2. Create a DeepL API key and add it to the common.api file:
     > API_KEY = "xxxxxxxx-xxx-xxxx-xxxx-xxxxxxxxxxxx"
 
     (https://www.deepl.com/en/your-account/keys)
-4. Run launcher.bat
-<br/>
+3. Run the multilingual-machine-translation-tool.bat file
+
+## HOW THE SCRIPT WORKS
+
+When you enter the path of the folder you want to translate, the script will recreate this folder by translating the XML files. If a `localization.ltx` file exists, the XML files will be automatically reorganized.
 
 ## PROBLEMS?
 
@@ -76,15 +76,15 @@ If you have any problems, please feel free to send me a private message.
     - Завантажте проект у вигляді zip-файлу
     - або виконайте git clone
 
-2. Запустіть файл init.bat. Створення середовища може зайняти деякий час.
-<span style="color:grey">(Файл створить віртуальне середовище Python для використання необхідних модулів перекладу, а також файл launcher.bat).</span>
-
-3. Створіть ключ API DeepL і додайте його до файлу common.api:
+2. Створіть ключ API DeepL і додайте його до файлу common.api:
     > API_KEY = "xxxxxxxx-xxx-xxxx-xxxx-xxxxxxxxxxxx"
 
     (https://www.deepl.com/uk/your-account/keys)
-4. Запустіть файл launcher.bat
-<br/>
+3. Запустіть файл multilingual-machine-translation-tool.bat
+
+## ЯК ПРАЦЮЄ СКРИПТ
+
+Коли ви вводите шлях до папки, яку хочете перекласти, скрипт відтворює цю папку, перекладаючи XML-файли. Якщо існує файл `localization.ltx`, XML-файли будуть автоматично реорганізовані.
 
 ## ПРОБЛЕМИ?
 
@@ -125,15 +125,15 @@ DeepL пропонує безкоштовні API-ключі з лімітом 5
     - Скачайте проект в виде zip-файла
     - или выполните git clone
 
-2. Запустите файл init.bat. Создание окружения может занять некоторое время.
-<span style="color:grey">(Файл создаст виртуальное окружение Python для использования необходимых модулей перевода, а также файл launcher.bat).</span>
-
-3. Создайте ключ API DeepL и добавьте его в файл common.api:
+2. Создайте ключ API DeepL и добавьте его в файл common.api:
     > API_KEY = "xxxxxxxx-xxx-xxxx-xxxx-xxxxxxxxxxxx"
 
     (https://www.deepl.com/ru/your-account/keys)
-4. Запустите файл launcher.bat
-<br/>
+3. Запустите файл multilingual-machine-translation-tool.bat
+
+## КАК РАБОТАЕТ СКРИПТ
+
+Когда вы вводите путь к папке, которую хотите перевести, скрипт воссоздаёт эту папку, переводя XML-файлы. Если существует файл `localization.ltx`, XML-файлы будут автоматически реорганизованы.
 
 ## ПРОБЛЕМЫ?
 
@@ -174,14 +174,15 @@ N'hesitez pas à me signaler tout problèmes.
     - Télécharger le projet en zip
     - ou faites un git clone
 
-2.  Executez le fichier init.bat. La création de l'environment peut prendre un peu de temps.
-<span style="color:grey">(Le fichier va créer une venv python pour pouvoir utiliser les modules nécessaires à la traduction ainsi qu'un fichier launcher.bat)</span>
-
-3.  Créez une clef API Deepl et ajoutez là dans le fichier common.api : 
+2.  Créez une clef API Deepl et ajoutez là dans le fichier common.api : 
     > API_KEY = "xxxxxxxx-xxx-xxxx-xxxx-xxxxxxxxxxxx"
 
     (https://www.deepl.com/fr/your-account/keys)
-4.  Lancez le fichier launcher.bat
+3.  Lancez le fichier multilingual-machine-translation-tool.bat
+
+## FONCTIONNEMENT DU SCRIPT
+
+Lorsque vous entrer le chemin du dossier que vous voulez traduire, le script va recréer se dossier en traduisant les fichiers XML. Si un fichier localization.ltx existe, les fichiers XML seront réorganisés automatiquement.
 
 ## PROBLEMES ?
 
