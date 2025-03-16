@@ -1,0 +1,5 @@
+api_perso.py
+common/__pycache__/
+Lib/
+Scripts/
+pyvenv.cfg
