@@ -44,6 +44,7 @@ If this is your first time running the file, it will need to install the Python 
 An uninstallation file is located in the `uninstall` folder. Make sure to run this file before deleting the `STALKER-multilingual-machine-translation-tool` folder.
 
 **Other**
+
 If you have any problems, please feel free to send me a private message.
 
 # __Українська__
@@ -85,6 +86,7 @@ If you have any problems, please feel free to send me a private message.
 Файл для видалення знаходиться в папці `uninstall`. Переконайтеся, що ви запустили цей файл перед видаленням папки `STALKER-multilingual-machine-translation-tool`.
 
 **Інші проблеми**
+
 Якщо у вас виникли будь-які проблеми, будь ласка, напишіть мені в особисті повідомлення.
 
 # __РУССКИЙ__
@@ -126,6 +128,7 @@ If you have any problems, please feel free to send me a private message.
 Файл для удаления находится в папке `uninstall`. Убедитесь, что вы запустили этот файл перед удалением папки `STALKER-multilingual-machine-translation-tool`.
 
 **Другие проблемы**
+
 Если у вас есть какие-либо проблемы, пожалуйста, напишите мне в личные сообщения.
 
 # __FRANCAIS__
@@ -167,6 +170,7 @@ Le fichier si cela est votre première execution du fichier, ce dernier va devoi
 un fichier de désinstallation se trouve dans le dossier unistall. assurez-vous de lancer ce fichier avant de supprimer le dossier STALKER-multilingual-machine-translation-tool.
 
 **Autre**
+
 Si vous rencontrez des problèmes, vous êtes le bienvenu dans mes messages privés.
 
 # TECHNOLOGIES USED
