@@ -1,35 +1,59 @@
 import os
 import shutil
 import xml.etree.ElementTree as ET
-import deepl
+import argostranslate.package
+import argostranslate.translate
 import unicodedata
-from common.api import API_KEY
 from common.languages import LANGUAGES_CONF, LANGUAGE_INPUT_TEXT
+from common.post_translate import post_translation_ajust
 
 
-def get_language_code():
+def install_argos_package(from_code, to_code):
+    # Download and install Argos Translate package
+    argostranslate.package.update_package_index()
+    available_packages = argostranslate.package.get_available_packages()
+    package_to_install = next(
+        filter(
+            lambda x: x.from_code == from_code and x.to_code == to_code, available_packages
+        )
+    )
+    argostranslate.package.install_from_path(package_to_install.download())
+
+
+def get_output_language():
     print(LANGUAGE_INPUT_TEXT)
     while True:
-        selected_lang = input("Enter the language code: ").upper()
+        selected_lang = input("Enter the language code: ").lower()
         if selected_lang in LANGUAGE_INPUT_TEXT:
             return selected_lang
         print("Invalid language code. Please try again.")
 
 
-def get_folder_path(language_code="EN"):
-    folder_path = input(f"{LANGUAGES_CONF[language_code]['select_folder_text']}")
+def get_folder_language(target_lang_code="en"):
+    while True:
+        folder_lang = input(f"{LANGUAGES_CONF[target_lang_code]['select_folder_language']}").lower()
+        if folder_lang in LANGUAGES_CONF:
+            return folder_lang
+        print()
+
+
+def get_folder_path(target_lang_code="en"):
+    folder_path = input(f"{LANGUAGES_CONF[target_lang_code]['select_folder_text']}")
     while not os.path.exists(folder_path):
-        print(LANGUAGES_CONF[language_code]['folder_not_found'])
-        folder_path = input(f"{LANGUAGES_CONF[language_code]['select_folder_text']}")
+        print(LANGUAGES_CONF[target_lang_code]['folder_not_found'])
+        folder_path = input(f"{LANGUAGES_CONF[target_lang_code]['select_folder_text']}")
     return folder_path
 
 
-def translate_text(text, translator, target_lang="EN"):
-    translated = translator.translate_text(text, target_lang=target_lang).text
-    # Remove accents from the translated text
+def translate_text(text, source_lang_code, target_lang_code):
+    # Traduire le texte en utilisant Argos Translate
+    translated = argostranslate.translate.translate(text, source_lang_code, target_lang_code)
+    
+    # Supprimer les accents du texte traduit
     normalized = unicodedata.normalize('NFD', translated)
     text_without_accents = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
-    return text_without_accents
+    
+    return post_translation_ajust(text_without_accents)
 
 
 def is_valid_xml(file_path):
@@ -53,7 +77,7 @@ def is_valid_xml(file_path):
         return False
 
 
-def process_xml(file_path, translator, output_folder, target_lang="EN"):
+def process_xml(file_path, output_folder, source_lang_code, target_lang_code):
     print("===============================================")
     print(f"Translating XML file: {file_path}")
     print("===============================================")
@@ -65,7 +89,7 @@ def process_xml(file_path, translator, output_folder, target_lang="EN"):
     for string_element in root.findall(".//string"):
         text_element = string_element.find("text")
         if text_element is not None and text_element.text:  # Ensure <text> exists and has content
-            translated_text = translate_text(text_element.text, translator, target_lang=target_lang)
+            translated_text = translate_text(text_element.text, source_lang_code, target_lang_code)
             text_element.text = translated_text
             print(f"Translated: {text_element.text}")
 
@@ -98,7 +122,9 @@ def update_localization_file(folder_path, localisation_code="eng"):
         print(f"No localization.ltx file found in {folder_path}.")
 
 
-def process_folder(folder_path, translator, target_lang="EN"):
+def process_folder(folder_path, 
+                   source_lang_code, 
+                   target_lang_code):
     # Create a new folder for translated files at the same level as the input folder
     parent_folder = os.path.dirname(folder_path)
     output_folder = os.path.join(parent_folder, "translated_files")
@@ -115,7 +141,7 @@ def process_folder(folder_path, translator, target_lang="EN"):
                 print(f"Checking XML file format: {file_path}")
                 if is_valid_xml(file_path):  # Validate XML format
                     print(f"Processing XML file: {file_path}")
-                    process_xml(file_path, translator, output_folder, target_lang=target_lang)
+                    process_xml(file_path, output_folder, source_lang_code, target_lang_code)
                 else:
                     print(f"Skipped invalid XML file: {file_path}")
             else:
@@ -125,7 +151,7 @@ def process_folder(folder_path, translator, target_lang="EN"):
                 print(f"Copied non-XML file: {file_path}")
 
     # Move translated files to gamedata\configs\text\fra if localization.ltx exists
-    gamedata_text_folder = os.path.join(folder_path, "gamedata", "configs", "text", LANGUAGES_CONF[target_lang]["localization_code"])
+    gamedata_text_folder = os.path.join(folder_path, "gamedata", "configs", "text", LANGUAGES_CONF[target_lang_code]["localization_code"])
     if os.path.exists(os.path.join(folder_path, "localization.ltx")):
         os.makedirs(gamedata_text_folder, exist_ok=True)
         for root, _, files in os.walk(output_folder):
@@ -138,17 +164,18 @@ def process_folder(folder_path, translator, target_lang="EN"):
         print(f"Translated files moved to: {gamedata_text_folder}")
 
     # Update localization.ltx
-    update_localization_file(folder_path, localisation_code=LANGUAGES_CONF[target_lang]["localization_code"])
+    update_localization_file(folder_path, localisation_code=LANGUAGES_CONF[target_lang_code]["localization_code"])
 
     print(f"All files processed. Translated files are in: {output_folder}")
 
 
 # Main script
 if __name__ == "__main__":
-    language_code = get_language_code()
-    folder_path = get_folder_path(language_code=language_code)
+    target_lang_code = get_output_language()
+    source_lang_code = get_folder_language(target_lang_code=target_lang_code)
+    folder_path = get_folder_path(target_lang_code=target_lang_code)
 
-    auth_key = API_KEY
-    translator = deepl.Translator(auth_key)
+    # Initialiser Argos Translate
+    install_argos_package(from_code=source_lang_code, to_code=target_lang_code)
 
-    process_folder(folder_path, translator, target_lang=language_code)
+    process_folder(folder_path, source_lang_code, target_lang_code)
