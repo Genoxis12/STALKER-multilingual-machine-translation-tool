@@ -77,28 +77,47 @@ def is_valid_xml(file_path):
         return False
 
 
-def process_xml(file_path, output_folder, source_lang_code, target_lang_code):
+def process_xml(file_path, 
+                output_folder, 
+                source_lang_code, 
+                target_lang_code, 
+                validated_xml_files, 
+                failed_xml_files
+                ):
+    """
+    Traduire toutes les balises <text> d'un fichier XML, peu importe le format.
+    """
     print("===============================================")
     print(f"Translating XML file: {file_path}")
     print("===============================================")
-    # Parse the XML file
-    tree = ET.parse(file_path)
-    root = tree.getroot()
 
-    # Iterate through all <string> elements and translate their <text> sub-elements
-    for string_element in root.findall(".//string"):
-        text_element = string_element.find("text")
-        if text_element is not None and text_element.text:  # Ensure <text> exists and has content
-            translated_text = translate_text(text_element.text, source_lang_code, target_lang_code)
-            text_element.text = translated_text
-            print(f"Translated: {text_element.text}")
+    # Parse le fichier XML
+    try:
+        tree = ET.parse(file_path)
+        root = tree.getroot()
 
-    # Save the modified XML to the output folder
-    output_file = os.path.join(output_folder, os.path.relpath(file_path, folder_path))
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)  # Ensure subdirectories exist
-    tree.write(output_file, encoding="utf-8", xml_declaration=True)
-    print(f"Translated XML saved to: {output_file}")
+        # Parcourir toutes les balises <text> et traduire leur contenu
+        for text_element in root.findall(".//text"):
+            if text_element.text:  # Vérifier que la balise <text> contient du texte
+                translated_text = translate_text(text_element.text, source_lang_code, target_lang_code)
+                text_element.text = translated_text
+                print(f"Translated: {text_element.text}")
+
+        # Sauvegarder le fichier XML modifié dans le dossier de sortie
+        output_file = os.path.join(output_folder, os.path.relpath(file_path, folder_path))
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)  # Créer les sous-dossiers si nécessaire
+        tree.write(output_file, encoding="utf-8", xml_declaration=True)
+        print(f"Translated XML saved to: {output_file}")
+        validated_xml_files += 1
+    except ET.ParseError:
+        print(f"Error parsing XML file: {file_path}")
+        failed_xml_files += 1
+    except Exception as e:
+        print(f"An error occurred while processing {file_path}: {e}")
+        failed_xml_files += 1
+
     print("===============================================")
+    return validated_xml_files, failed_xml_files
 
 
 def update_localization_file(folder_path, localisation_code="eng"):
@@ -125,25 +144,30 @@ def update_localization_file(folder_path, localisation_code="eng"):
 def process_folder(folder_path, 
                    source_lang_code, 
                    target_lang_code):
+    
+    total_files = 0
+    total_xml_files = 0
+    validated_xml_files = 0
+    failed_xml_files = 0
+
     # Create a new folder for translated files at the same level as the input folder
     parent_folder = os.path.dirname(folder_path)
-    output_folder = os.path.join(parent_folder, "translated_files")
+    output_folder = os.path.join(parent_folder, f"{parent_folder.split("/")[-1]}_{target_lang_code}")
     os.makedirs(output_folder, exist_ok=True)
 
     # Iterate through all files in the folder
     for root, _, files in os.walk(folder_path):
         for file in files:
+            total_files += 1
             file_path = os.path.join(root, file)
             relative_path = os.path.relpath(file_path, folder_path)  # Preserve relative path
             output_file_path = os.path.join(output_folder, relative_path)
 
             if file.endswith(".xml"):  # Process only XML files
-                print(f"Checking XML file format: {file_path}")
-                if is_valid_xml(file_path):  # Validate XML format
-                    print(f"Processing XML file: {file_path}")
-                    process_xml(file_path, output_folder, source_lang_code, target_lang_code)
-                else:
-                    print(f"Skipped invalid XML file: {file_path}")
+                total_xml_files += 1
+                validated_xml_files, failed_xml_files = process_xml(file_path, output_folder, source_lang_code, 
+                                                                    target_lang_code, validated_xml_files, 
+                                                                    failed_xml_files)
             else:
                 # Copy non-XML files to the output folder, preserving structure
                 os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
@@ -168,6 +192,8 @@ def process_folder(folder_path,
 
     print(f"All files processed. Translated files are in: {output_folder}")
 
+    return total_files, total_xml_files, validated_xml_files, failed_xml_files, output_folder
+
 
 # Main script
 if __name__ == "__main__":
@@ -178,4 +204,26 @@ if __name__ == "__main__":
     # Initialiser Argos Translate
     install_argos_package(from_code=source_lang_code, to_code=target_lang_code)
 
-    process_folder(folder_path, source_lang_code, target_lang_code)
+    (total_files, 
+     total_xml_files, 
+     validated_xml_files, 
+     failed_xml_files,
+     output_folder
+     ) = process_folder(folder_path, source_lang_code, target_lang_code)
+    
+    summary_text = LANGUAGES_CONF[target_lang_code]["summary"]
+
+    print("===============================================")
+    print(f"{summary_text["summary"]}")
+    print("===============================================")
+    print(f"{summary_text["source_language"]} {source_lang_code}")
+    print(f"{summary_text["target_language"]} {target_lang_code}")
+    print("-----------------------------------------------")
+    print(f"{summary_text["total_files"]} {total_files}")
+    print("-----------------------------------------------")
+    print(f"{summary_text["total_xml_files"]} {total_xml_files}")
+    print(f"{summary_text["validated_files"]} {validated_xml_files}")
+    print(f"{summary_text["files_with_errors"]} {failed_xml_files}")
+    print("-----------------------------------------------")
+    print(f"{summary_text["translated_files"]} {output_folder}")
+    print("===============================================")
