@@ -5,7 +5,7 @@ import argostranslate.package
 import argostranslate.translate
 import unicodedata
 from common.languages import LANGUAGES_CONF, LANGUAGE_INPUT_TEXT
-from common.post_translate import post_translation_ajust
+from common import post_translate_redirect
 
 
 def install_argos_package(from_code, to_code):
@@ -53,7 +53,7 @@ def translate_text(text, source_lang_code, target_lang_code):
     normalized = unicodedata.normalize('NFD', translated)
     text_without_accents = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
     
-    return post_translation_ajust(text_without_accents)
+    return post_translate_redirect(text_without_accents, target_lang_code)
 
 
 def is_valid_xml(file_path):
@@ -93,7 +93,15 @@ def process_xml(file_path,
 
     # Parse le fichier XML
     try:
-        tree = ET.parse(file_path)
+        # Lire le fichier XML en tant que texte brut avec l'encodage windows-1251
+        with open(file_path, "r", encoding="windows-1251") as file:
+            xml_content = file.read()
+
+        # Échapper les caractères spéciaux problématiques
+        xml_content = xml_content.replace("&", "&amp;")
+
+        # Parser le contenu corrigé
+        tree = ET.ElementTree(ET.fromstring(xml_content))
         root = tree.getroot()
 
         # Parcourir toutes les balises <text> et traduire leur contenu
@@ -143,20 +151,37 @@ def update_localization_file(folder_path, localisation_code="eng"):
 
 def process_folder(folder_path, 
                    source_lang_code, 
-                   target_lang_code):
+                   target_lang_code,
+                   localisation_code_target,
+                   localisation_code_source="rus"
+                   ):
     
     total_files = 0
     total_xml_files = 0
     validated_xml_files = 0
     failed_xml_files = 0
 
+    # Vérifier si un dossier nommé comme localisation_code_source existe
+    localisation_folder_exists = any(
+        os.path.basename(root) == localisation_code_source for root, _, _ in os.walk(folder_path)
+    )
+    if not localisation_folder_exists:
+        print(f"No folder named '{localisation_code_source}' found. Defaulting to 'rus'.")
+        text_folder_name = "rus"
+    else:
+        text_folder_name = localisation_code_source
+
     # Create a new folder for translated files at the same level as the input folder
     parent_folder = os.path.dirname(folder_path)
-    output_folder = os.path.join(parent_folder, f"{parent_folder.split("/")[-1]}_{target_lang_code}")
+    folder_name = parent_folder.split("/")[-1]
+    output_folder = os.path.join(parent_folder, f"gamedata_{target_lang_code}")
     os.makedirs(output_folder, exist_ok=True)
 
     # Iterate through all files in the folder
     for root, _, files in os.walk(folder_path):
+        # Vérifier si le dossier actuel correspond au code de localisation source
+        if os.path.basename(root) != text_folder_name:
+            continue  # Ignorer les dossiers qui ne correspondent pas
         for file in files:
             total_files += 1
             file_path = os.path.join(root, file)
@@ -175,7 +200,7 @@ def process_folder(folder_path,
                 print(f"Copied non-XML file: {file_path}")
 
     # Move translated files to gamedata\configs\text\fra if localization.ltx exists
-    gamedata_text_folder = os.path.join(folder_path, "gamedata", "configs", "text", LANGUAGES_CONF[target_lang_code]["localization_code"])
+    gamedata_text_folder = os.path.join(folder_path, "gamedata", "configs", "text", localisation_code_target)
     if os.path.exists(os.path.join(folder_path, "localization.ltx")):
         os.makedirs(gamedata_text_folder, exist_ok=True)
         for root, _, files in os.walk(output_folder):
@@ -188,7 +213,7 @@ def process_folder(folder_path,
         print(f"Translated files moved to: {gamedata_text_folder}")
 
     # Update localization.ltx
-    update_localization_file(folder_path, localisation_code=LANGUAGES_CONF[target_lang_code]["localization_code"])
+    update_localization_file(folder_path, localisation_code=localisation_code_target)
 
     print(f"All files processed. Translated files are in: {output_folder}")
 
@@ -209,21 +234,34 @@ if __name__ == "__main__":
      validated_xml_files, 
      failed_xml_files,
      output_folder
-     ) = process_folder(folder_path, source_lang_code, target_lang_code)
+     ) = process_folder(folder_path, 
+                        source_lang_code, 
+                        target_lang_code, 
+                        localisation_code_target=LANGUAGES_CONF[target_lang_code]["localization_code"],
+                        localisation_code_source=LANGUAGES_CONF[source_lang_code]["localization_code"]
+                        )
     
-    summary_text = LANGUAGES_CONF[target_lang_code]["summary"]
+    
+    summary_result_text = LANGUAGES_CONF[target_lang_code]["summary"]
+    source_language_result_text = LANGUAGES_CONF[target_lang_code]["source_language"]
+    target_language_result_text = LANGUAGES_CONF[target_lang_code]["target_language"]
+    total_files_result_text = LANGUAGES_CONF[target_lang_code]["total_files"]
+    total_xml_files_result_text = LANGUAGES_CONF[target_lang_code]["total_xml_files"]
+    validated_xml_files_result_text = LANGUAGES_CONF[target_lang_code]["validated_files"]
+    failed_xml_files_result_text = LANGUAGES_CONF[target_lang_code]["files_with_errors"]
+    translated_folder_path_result_text = LANGUAGES_CONF[target_lang_code]["translated_files"]
 
     print("===============================================")
-    print(f"{summary_text["summary"]}")
+    print(f"{summary_result_text}")
     print("===============================================")
-    print(f"{summary_text["source_language"]} {source_lang_code}")
-    print(f"{summary_text["target_language"]} {target_lang_code}")
+    print(f"{source_language_result_text} {source_lang_code}")
+    print(f"{target_language_result_text} {target_lang_code}")
     print("-----------------------------------------------")
-    print(f"{summary_text["total_files"]} {total_files}")
+    print(f"{total_files_result_text} {total_files}")
     print("-----------------------------------------------")
-    print(f"{summary_text["total_xml_files"]} {total_xml_files}")
-    print(f"{summary_text["validated_files"]} {validated_xml_files}")
-    print(f"{summary_text["files_with_errors"]} {failed_xml_files}")
+    print(f"{total_xml_files_result_text} {total_xml_files}")
+    print(f"{validated_xml_files_result_text} {validated_xml_files}")
+    print(f"{failed_xml_files_result_text} {failed_xml_files}")
     print("-----------------------------------------------")
-    print(f"{summary_text["translated_files"]} {output_folder}")
+    print(f"{translated_folder_path_result_text} {output_folder}")
     print("===============================================")

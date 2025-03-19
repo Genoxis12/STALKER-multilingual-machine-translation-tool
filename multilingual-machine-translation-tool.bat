@@ -7,7 +7,9 @@ if exist "%~dp0\pyvenv.cfg" (
     python -m venv "%CD%"
     echo Activating virtual environment...
     call "%CD%\Scripts\activate.bat"
-    echo Installing dependencies...
+    echo Installing dependencies, may take some times... 
+    echo Installation of 2Gb packages. sorry (ㅠ﹏ㅠ)
+    timeout /t 10 /nobreak > nul
     pip install -r requirements.txt
 )
 
