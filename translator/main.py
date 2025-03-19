@@ -10,14 +10,50 @@ from common import post_translate_redirect
 
 def install_argos_package(from_code, to_code):
     # Download and install Argos Translate package
+    # Mettre à jour l'index des packages
     argostranslate.package.update_package_index()
     available_packages = argostranslate.package.get_available_packages()
+
+    # Trouver le package correspondant
     package_to_install = next(
         filter(
             lambda x: x.from_code == from_code and x.to_code == to_code, available_packages
         )
     )
-    argostranslate.package.install_from_path(package_to_install.download())
+
+    # Télécharger le package
+    package_path = package_to_install.download()
+
+    # Installer le package
+    argostranslate.package.install_from_path(package_path)
+
+    # Supprimer le fichier temporaire
+    try:
+        os.remove(package_path)
+        print(f"Temporary file {package_path} deleted.")
+    except Exception as e:
+        print(f"Failed to delete temporary file {package_path}: {e}")
+
+
+def clean_temp_files():
+    """
+    Supprime tous les fichiers temporaires créés par Argos Translate.
+    """
+    temp_folder = os.path.join(os.getcwd(), "temp")
+    if os.path.exists(temp_folder):
+        for root, _, files in os.walk(temp_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    os.remove(file_path)
+                    print(f"Deleted temporary file: {file_path}")
+                except Exception as e:
+                    print(f"Failed to delete {file_path}: {e}")
+        try:
+            os.rmdir(temp_folder)
+            print(f"Deleted temporary folder: {temp_folder}")
+        except Exception as e:
+            print(f"Failed to delete temporary folder {temp_folder}: {e}")
 
 
 def get_output_language():
@@ -241,6 +277,7 @@ if __name__ == "__main__":
                         localisation_code_source=LANGUAGES_CONF[source_lang_code]["localization_code"]
                         )
     
+    clean_temp_files()
     
     summary_result_text = LANGUAGES_CONF[target_lang_code]["summary"]
     source_language_result_text = LANGUAGES_CONF[target_lang_code]["source_language"]
