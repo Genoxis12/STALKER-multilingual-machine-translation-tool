@@ -6,3 +6,6 @@ pyvenv.cfg
 **/Include/
 **/translated_files/
 **/share/
+batch.log
+Installation.log
+**/test/

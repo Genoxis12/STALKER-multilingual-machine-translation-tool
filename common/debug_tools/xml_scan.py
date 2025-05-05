@@ -1,4 +1,4 @@
-from .. languages import LANGUAGE_INPUT_TEXT, LANGUAGES_CONF
+from common.languages import LANGUAGES_CONF, LANGUAGE_INPUT_TEXT
 import os
 import xml.etree.ElementTree as ET
 
@@ -11,7 +11,7 @@ def get_language_code():
         print("Invalid language code. Please try again.")
 
 
-def get_folder_path(language_code="EN"):
+def get_folder_path(language_code="en"):
     folder_path = input(f"{LANGUAGES_CONF[language_code]['select_folder_text']}")
     while not os.path.exists(folder_path):
         print(LANGUAGES_CONF[language_code]['folder_not_found'])
@@ -68,6 +68,8 @@ def process_folder(folder_path):
                     files_errors += 1
     
     return total_files, validated_files, files_errors
+
+
 
 
 folder_path = get_folder_path()
