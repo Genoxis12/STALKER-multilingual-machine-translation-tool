@@ -5,19 +5,67 @@ import argostranslate.package
 import argostranslate.translate
 import unicodedata
 from common.languages import LANGUAGES_CONF, LANGUAGE_INPUT_TEXT
-from common.post_translate import post_translation_ajust
+from common.post_translate_redirect import post_translate_redirect
 
 
 def install_argos_package(from_code, to_code):
     # Download and install Argos Translate package
+    # Mettre à jour l'index des packages
     argostranslate.package.update_package_index()
     available_packages = argostranslate.package.get_available_packages()
+
+    print("Available packages:")
+    for package in available_packages:
+        print(f"{package.from_code} -> {package.to_code}")
+
+    # Trouver le package correspondant
     package_to_install = next(
-        filter(
-            lambda x: x.from_code == from_code and x.to_code == to_code, available_packages
-        )
+        (pkg for pkg in available_packages if pkg.from_code == from_code and pkg.to_code == to_code),
+        None
     )
-    argostranslate.package.install_from_path(package_to_install.download())
+
+    if not package_to_install:
+        print(f"No translation package found for {from_code} -> {to_code}.")
+        return False
+
+    # Télécharger le package
+    package_path = package_to_install.download()
+
+    # Installer le package
+    argostranslate.package.install_from_path(package_path)
+
+    return package_path
+
+
+def delete_package_files(package_path):
+
+    # Supprimer le fichier temporaire
+    try:
+        os.remove(package_path)
+        print(f"Temporary file {package_path} deleted.")
+    except Exception as e:
+        print(f"Failed to delete temporary file {package_path}: {e}")
+
+
+def clean_temp_files():
+    """
+    Supprime tous les fichiers temporaires créés par Argos Translate.
+    """
+    temp_folder = os.path.join(os.getcwd(), "temp")
+    if os.path.exists(temp_folder):
+        for root, _, files in os.walk(temp_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    os.remove(file_path)
+                    print(f"Deleted temporary file: {file_path}")
+                except Exception as e:
+                    print(f"Failed to delete {file_path}: {e}")
+        try:
+            os.rmdir(temp_folder)
+            print(f"Deleted temporary folder: {temp_folder}")
+        except Exception as e:
+            print(f"Failed to delete temporary folder {temp_folder}: {e}")
 
 
 def get_output_language():
@@ -48,57 +96,73 @@ def get_folder_path(target_lang_code="en"):
 def translate_text(text, source_lang_code, target_lang_code):
     # Traduire le texte en utilisant Argos Translate
     translated = argostranslate.translate.translate(text, source_lang_code, target_lang_code)
+
+    if translated is None:
+        print(f"Translation failed for text: {text}")
+        return text  # Retourne le texte original si la traduction échoue
     
     # Supprimer les accents du texte traduit
     normalized = unicodedata.normalize('NFD', translated)
     text_without_accents = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
     
-    return post_translation_ajust(text_without_accents)
+    return post_translate_redirect(text_without_accents, target_lang_code)
 
 
-def is_valid_xml(file_path):
+def process_xml(file_path, 
+                output_folder, 
+                source_lang_code, 
+                target_lang_code, 
+                validated_xml_files, 
+                failed_xml_files
+                ):
     """
-    Check if the XML file has the correct format:
-    - Contains <string> elements with <text> sub-elements that have content.
+    Traduire toutes les balises <text> d'un fichier XML, peu importe le format.
     """
-    try:
-        tree = ET.parse(file_path)
-        root = tree.getroot()
-
-        # Check if all <string> elements have a <text> sub-element with content
-        for string_element in root.findall(".//string"):
-            text_element = string_element.find("text")
-            if text_element is None or not text_element.text.strip():
-                print(f"Invalid format in file: {file_path}")
-                return False
-        return True
-    except ET.ParseError:
-        print(f"Error parsing XML file: {file_path}")
-        return False
-
-
-def process_xml(file_path, output_folder, source_lang_code, target_lang_code):
     print("===============================================")
     print(f"Translating XML file: {file_path}")
     print("===============================================")
-    # Parse the XML file
-    tree = ET.parse(file_path)
-    root = tree.getroot()
 
-    # Iterate through all <string> elements and translate their <text> sub-elements
-    for string_element in root.findall(".//string"):
-        text_element = string_element.find("text")
-        if text_element is not None and text_element.text:  # Ensure <text> exists and has content
-            translated_text = translate_text(text_element.text, source_lang_code, target_lang_code)
-            text_element.text = translated_text
-            print(f"Translated: {text_element.text}")
+    # Parse xml file
+    try:
+        # Read the XML file content and fix encoding issues
+        with open(file_path, "r", encoding="windows-1251") as file:
+            xml_content = file.read()
 
-    # Save the modified XML to the output folder
-    output_file = os.path.join(output_folder, os.path.relpath(file_path, folder_path))
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)  # Ensure subdirectories exist
-    tree.write(output_file, encoding="utf-8", xml_declaration=True)
-    print(f"Translated XML saved to: {output_file}")
+        # Escape special characters
+        xml_content = xml_content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        xml_content = xml_content.replace("\"", "&quot;").replace("'", "&apos;").replace("\n", "&#10;")
+
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+
+        # Parse the XML content and translate the text elements
+        for text_element in root.findall(".//text"):
+            if text_element.text:  # Verify that the text element has content
+                translated_text = translate_text(text_element.text, source_lang_code, target_lang_code)
+                if translated_text is None:
+                    print(f"Skipping translation for: {text_element.text}")
+                    continue
+                text_element.text = translated_text
+                print(f"Translated: {text_element.text}")
+
+        # Save the translated XML content to a new file
+        output_file = os.path.join(output_folder, os.path.relpath(file_path, folder_path))
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)  # Créer les sous-dossiers si nécessaire
+        tree.write(output_file, encoding="utf-8", xml_declaration=True)
+        print(f"Translated XML saved to: {output_file}")
+        validated_xml_files += 1
+
+    except ET.ParseError as e:
+        print(f"Error parsing XML file: {file_path}")
+        print("error : " + str(e))
+        failed_xml_files += 1
+
+    except Exception as e:
+        print(f"An error occurred while processing {file_path}: {e}")
+        failed_xml_files += 1
+
     print("===============================================")
+    return validated_xml_files, failed_xml_files
 
 
 def update_localization_file(folder_path, localisation_code="eng"):
@@ -124,26 +188,48 @@ def update_localization_file(folder_path, localisation_code="eng"):
 
 def process_folder(folder_path, 
                    source_lang_code, 
-                   target_lang_code):
+                   target_lang_code,
+                   localisation_code_target,
+                   localisation_code_source="rus"
+                   ):
+    
+    total_files = 0
+    total_xml_files = 0
+    validated_xml_files = 0
+    failed_xml_files = 0
+
+    # Verify if the folder for the source localization code exists
+    localisation_folder_exists = any(
+        os.path.basename(root) == localisation_code_source for root, _, _ in os.walk(folder_path)
+    )
+    if not localisation_folder_exists:
+        print(f"No folder named '{localisation_code_source}' found. Defaulting to 'rus'.")
+        text_folder_name = "rus"
+    else:
+        text_folder_name = localisation_code_source
+
     # Create a new folder for translated files at the same level as the input folder
     parent_folder = os.path.dirname(folder_path)
-    output_folder = os.path.join(parent_folder, "translated_files")
+    folder_name = parent_folder.split("/")[-1]
+    output_folder = os.path.join(parent_folder, f"gamedata_{target_lang_code}")
     os.makedirs(output_folder, exist_ok=True)
 
     # Iterate through all files in the folder
     for root, _, files in os.walk(folder_path):
+        # Vérifier si le dossier actuel correspond au code de localisation source
+        if os.path.basename(root) != text_folder_name:
+            continue  # Ignorer les dossiers qui ne correspondent pas
         for file in files:
+            total_files += 1
             file_path = os.path.join(root, file)
             relative_path = os.path.relpath(file_path, folder_path)  # Preserve relative path
             output_file_path = os.path.join(output_folder, relative_path)
 
             if file.endswith(".xml"):  # Process only XML files
-                print(f"Checking XML file format: {file_path}")
-                if is_valid_xml(file_path):  # Validate XML format
-                    print(f"Processing XML file: {file_path}")
-                    process_xml(file_path, output_folder, source_lang_code, target_lang_code)
-                else:
-                    print(f"Skipped invalid XML file: {file_path}")
+                total_xml_files += 1
+                validated_xml_files, failed_xml_files = process_xml(file_path, output_folder, source_lang_code, 
+                                                                    target_lang_code, validated_xml_files, 
+                                                                    failed_xml_files)
             else:
                 # Copy non-XML files to the output folder, preserving structure
                 os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
@@ -151,7 +237,7 @@ def process_folder(folder_path,
                 print(f"Copied non-XML file: {file_path}")
 
     # Move translated files to gamedata\configs\text\fra if localization.ltx exists
-    gamedata_text_folder = os.path.join(folder_path, "gamedata", "configs", "text", LANGUAGES_CONF[target_lang_code]["localization_code"])
+    gamedata_text_folder = os.path.join(folder_path, "gamedata", "configs", "text", localisation_code_target)
     if os.path.exists(os.path.join(folder_path, "localization.ltx")):
         os.makedirs(gamedata_text_folder, exist_ok=True)
         for root, _, files in os.walk(output_folder):
@@ -164,9 +250,11 @@ def process_folder(folder_path,
         print(f"Translated files moved to: {gamedata_text_folder}")
 
     # Update localization.ltx
-    update_localization_file(folder_path, localisation_code=LANGUAGES_CONF[target_lang_code]["localization_code"])
+    update_localization_file(folder_path, localisation_code=localisation_code_target)
 
     print(f"All files processed. Translated files are in: {output_folder}")
+
+    return total_files, total_xml_files, validated_xml_files, failed_xml_files, output_folder
 
 
 # Main script
@@ -176,6 +264,44 @@ if __name__ == "__main__":
     folder_path = get_folder_path(target_lang_code=target_lang_code)
 
     # Initialiser Argos Translate
-    install_argos_package(from_code=source_lang_code, to_code=target_lang_code)
+    package_path = install_argos_package(from_code=source_lang_code, to_code=target_lang_code)
 
-    process_folder(folder_path, source_lang_code, target_lang_code)
+    (total_files, 
+     total_xml_files, 
+     validated_xml_files, 
+     failed_xml_files,
+     output_folder
+     ) = process_folder(folder_path, 
+                        source_lang_code, 
+                        target_lang_code, 
+                        localisation_code_target=LANGUAGES_CONF[target_lang_code]["localization_code"],
+                        localisation_code_source=LANGUAGES_CONF[source_lang_code]["localization_code"]
+                        )
+    
+    clean_temp_files()
+
+    delete_package_files(package_path)
+    
+    summary_result_text = LANGUAGES_CONF[target_lang_code]["summary"]
+    source_language_result_text = LANGUAGES_CONF[target_lang_code]["source_language"]
+    target_language_result_text = LANGUAGES_CONF[target_lang_code]["target_language"]
+    total_files_result_text = LANGUAGES_CONF[target_lang_code]["total_files"]
+    total_xml_files_result_text = LANGUAGES_CONF[target_lang_code]["total_xml_files"]
+    validated_xml_files_result_text = LANGUAGES_CONF[target_lang_code]["validated_files"]
+    failed_xml_files_result_text = LANGUAGES_CONF[target_lang_code]["files_with_errors"]
+    translated_folder_path_result_text = LANGUAGES_CONF[target_lang_code]["translated_files"]
+
+    print("===============================================")
+    print(f"{summary_result_text}")
+    print("===============================================")
+    print(f"{source_language_result_text} {source_lang_code}")
+    print(f"{target_language_result_text} {target_lang_code}")
+    print("-----------------------------------------------")
+    print(f"{total_files_result_text} {total_files}")
+    print("-----------------------------------------------")
+    print(f"{total_xml_files_result_text} {total_xml_files}")
+    print(f"{validated_xml_files_result_text} {validated_xml_files}")
+    print(f"{failed_xml_files_result_text} {failed_xml_files}")
+    print("-----------------------------------------------")
+    print(f"{translated_folder_path_result_text} {output_folder}")
+    print("===============================================")

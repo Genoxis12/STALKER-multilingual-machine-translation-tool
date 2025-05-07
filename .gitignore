@@ -5,3 +5,7 @@ pyvenv.cfg
 **/__pycache__/
 **/Include/
 **/translated_files/
+**/share/
+batch.log
+Installation.log
+**/test/
